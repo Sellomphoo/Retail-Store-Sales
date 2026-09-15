@@ -96,3 +96,6 @@ Card and page backgrounds were set to neutral off-white/light gray rather than m
 
 - Microsoft Excel (formulas, PivotTables, Power Query concepts, native charts)
 - Manual verification via a dedicated Calculations sheet
+
+## Dataset link
+- https://www.kaggle.com/datasets/ahmedmohamed2003/retail-store-sales-dirty-for-data-cleaning/data
