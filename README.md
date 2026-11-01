@@ -12,6 +12,7 @@ The project takes the raw dataset through cleaning, validation, calculation and 
 ![Retail Store Sales Dashboard](./screenshots/clean1.png)
 ![Retail Store Sales Dashboard](./screenshots/clean2.png)
 ![Retail Store Sales Dashboard](./screenshots/clean3.png)
+![Retail Store Sales Dashboard](./screenshots/clean4.png)
 
 ## Business Questions Addressed
 - Which categories drive the most revenue and the most units sold?
