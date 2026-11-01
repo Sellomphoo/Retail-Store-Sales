@@ -1,101 +1,89 @@
-# Retail Store Sales — Data Cleaning, Analysis & Dashboard
+# Retail Store Sales Analytics Dashboard — Excel
 
 ## Overview
+An end-to-end Excel project that cleans, validates and analyses the **Dirty Retail Store Sales** dataset ([source](https://www.kaggle.com/datasets/ahmedmohamed2003/retail-store-sales-dirty-for-data-cleaning/data)). It contains 12,575 rows of synthetic sales transactions across eight product categories, each with 25 items at static prices. The data is deliberately "dirty", with missing and inconsistent values that simulate real-world sales data.
 
-The **Dirty Retail Store Sales** dataset contains 12,575 rows of synthetic data representing sales transactions from a retail store. The dataset spans eight product categories, each with 25 items at static prices, and is deliberately "dirty" — containing missing and inconsistent values — to simulate real-world sales data.
-
-This project takes that raw dataset through cleaning, validation, calculation, and visualization, producing a dashboard summarizing revenue, quantity, discount behavior, purchase location, and payment method across categories.
-
-## Key characteristics of the raw dataset
-
-- **Missing data**: columns including `Item`, `Price Per Unit`, `Quantity`, and `Total Spent` contain missing values, simulating real-world inconsistencies.
-- **Item probabilities**: items within each category appear with different frequencies rather than uniformly.
-- **Transaction uniqueness**: `Transaction ID` is always unique and present; `Customer ID` is always valid, drawn from 25 unique customers.
-- **Dynamic dirtiness**: some transactions are only partially complete, requiring inference to recover missing values (e.g. deducing `Item` from `Price Per Unit` and `Total Spent`).
-
-## Problem statement
-
-Given a 12,575-row transactional dataset with missing and inconsistent values, the goal was to:
-
-1. Clean and validate the data without fabricating information that couldn't be reasonably inferred.
-2. Verify that cleaned/calculated figures were correct before using them in analysis.
-3. Build a dashboard summarizing revenue, sales volume, discount behavior, and channel/payment patterns by category.
-4. Present findings honestly, including flagging where the data shows little variation rather than forcing a narrative onto it.
-
-## Cleaning process
-
-### Numeric columns: `Price Per Unit`, `Quantity`, `Total Spent`
-
-These three columns have a fixed relationship: `Total Spent = Price Per Unit × Quantity`. Where exactly one of the three was blank, it was recovered by calculation rather than estimation:
-
-- Blank `Total Spent` → `=Price Per Unit × Quantity`
-- Blank `Quantity` → `=Total Spent ÷ Price Per Unit`
-- Blank `Price Per Unit` → `=Total Spent ÷ Quantity`
-
-Formulas were wrapped in `IFERROR`/`ISNUMBER` checks to avoid `#VALUE!` errors from stray blank or text-formatted cells. Rows with **two or more** of these three values missing could not be back-calculated and were left as-is rather than guessed, since fabricating either value would have quietly corrupted revenue totals.
-
-### Text column: `Item`
-
-The raw `Item` values followed the pattern `Item_<number>_<ABBREVIATION>` (e.g. `Item_10_PAT`). Since only the abbreviation was needed, `TEXTAFTER(cell, "_", -1)` was used to extract everything after the final underscore, wrapped in `IFERROR` to leave already-blank cells untouched.
-
-For rows where `Item` was blank outright, the initial plan was to infer it from `Category`. This was tested against the actual 12,575-row dataset using a PivotTable (Category → Item, Min/Max price) and confirmed: **each Category maps to exactly one Item abbreviation** across the full dataset (e.g. Patisserie → PAT, Milk Products → MILK). This meant a direct `VLOOKUP` against a Category → Item table was a safe, non-fabricated way to fill blanks — unlike a scenario with multiple items per category, where guessing would not have been justified.
-
-## Validation / Calculations sheet
-
-A separate **Calculations** sheet was built to independently verify every figure appearing on the dashboard, rather than trusting PivotTable output at face value. This step caught real errors:
-
-- **Payment Method Per Category** and **Category Sold On Discount**: several `COUNTIFS` formulas referenced a single fixed cell in the raw data sheet instead of the column header in the Calculations sheet itself, producing duplicated values across categories (e.g. Milk Products showing identical counts for Cash, Credit Card, and Digital Wallet) and grand totals that didn't reconcile to 12,575.
-- **Revenue Per Month**: a `SUMIF` formula had the same issue, causing March/April/May and January/September/October to return identical (incorrect) totals.
-
-**Fix**: criteria arguments were corrected to reference the row/column labels within the Calculations sheet itself (using mixed `$` references so the formula could be copied across the full table), rather than a fixed cell in the raw data. After the fix, all totals reconciled to 12,575 transactions.
-
-This step reinforced a core principle followed throughout the project: **a pivot or summary number is only trustworthy once it's been independently cross-checked**, not assumed correct because it renders cleanly.
+The project takes the raw dataset through cleaning, validation, calculation and visualisation, producing a dashboard of revenue, quantity, discount behaviour, purchase location and payment method by category.
 
 ## Dashboard
 
-The dashboard summarizes:
+![Retail Store Sales Dashboard](./screenshots/dashboard-overview.png)
+![Retail Store Sales Dashboard](./screenshots/dashboard-overview1.png)
+![Retail Store Sales Dashboard](./screenshots/clean1.png)
+![Retail Store Sales Dashboard](./screenshots/clean2.png)
+![Retail Store Sales Dashboard](./screenshots/clean3.png)
 
+## Business Questions Addressed
+- Which categories drive the most revenue and the most units sold?
+- Does discount usage differ by category?
+- How are transactions split between Online and In-store, and across payment methods?
+- How does revenue change by month and by year?
+- Which missing values can be recovered with certainty, and which must be left as gaps?
+
+## Data Model
+Built on a single flat table with one row per transaction (12,575 rows). PivotTables on a separate Calculations sheet feed the dashboard.
+
+**Fields:** Transaction ID, Customer ID, Category, Item, Price Per Unit, Quantity, Total Spent, Payment Method, Location, Transaction Date, Discount Applied. Month and Year columns were derived from the transaction date for the time analysis.
+
+## Data Profiling
+- **Missing data** appears in `Item`, `Price Per Unit`, `Quantity` and `Total Spent`.
+- **Transaction ID** is always unique and present, and **Customer ID** is always valid (drawn from 25 unique customers).
+- **A fixed relationship links three columns:** `Total Spent = Price Per Unit × Quantity`, so a single missing value among them can be calculated exactly.
+- **`Item` values** follow the pattern `Item_<number>_<ABBREVIATION>` (for example `Item_10_PAT`).
+- **Each category maps to exactly one item abbreviation** across the full dataset, confirmed with a PivotTable of Category → Item with Min and Max price (for example Patisserie → PAT, Milk Products → MILK).
+- **Some transactions are only partly complete**, so values must be inferred where possible.
+
+## Data Challenges and Decisions
+- **One missing value among Price Per Unit, Quantity and Total Spent.** The relationship `Total Spent = Price Per Unit × Quantity` recovers the missing value exactly. *Decision:* calculate it instead of estimating it (blank Total Spent = Price × Quantity, blank Quantity = Total Spent ÷ Price, blank Price = Total Spent ÷ Quantity). The formulas use `IFERROR` and `ISNUMBER` checks to avoid `#VALUE!` errors from stray blank or text-formatted cells.
+- **Two or more of those three missing.** There is not enough information to back-calculate anything. *Decision:* leave these rows incomplete, because inventing a value would quietly corrupt revenue totals.
+- **Messy `Item` text.** Only the abbreviation was needed. *Decision:* extract it with `TEXTAFTER(cell, "_", -1)`, wrapped in `IFERROR` so already-blank cells stay untouched.
+- **Blank `Item`.** The first plan was to infer it from `Category`. *Decision:* test that plan before using it. The Category → Item PivotTable confirmed a one-to-one mapping, so blanks are filled with a `VLOOKUP` against a Category → Item table. This would not have been safe if a category contained several items.
+- **Formula errors in the Calculations sheet.** The verification layer exposed two problems:
+  - Several `COUNTIFS` formulas (Payment Method Per Category and Category Sold On Discount) pointed at a single fixed cell in the raw data instead of the label cells on the Calculations sheet. This duplicated values across categories (Milk Products showed identical counts for Cash, Credit Card and Digital Wallet) and left grand totals that did not reconcile to 12,575.
+  - A `SUMIF` formula in Revenue Per Month had the same problem, so March, April and May (and January, September and October) returned identical, incorrect totals.
+
+  *Fix:* criteria now reference the row and column labels on the Calculations sheet, using mixed `$` references so the formulas copy across the whole table. All totals then reconciled to 12,575 transactions.
+
+## Process
+1. **Profiling:** reviewed missing values, relationships between columns and the structure of `Item`.
+2. **Cleaning:** applied the decisions above.
+3. **Verification:** built a separate Calculations sheet to cross-check every dashboard figure instead of trusting PivotTable output at face value.
+4. **Visualisation:** built the dashboard with PivotCharts, using a consistent colour palette (navy for primary metrics and Online, orange for secondary metrics and In-store, gold for top performers, light blue-grey for de-emphasised comparisons).
+
+## Key Measures
+| KPI | Definition |
+|---|---|
+| Total Transactions | Count of transactions (12,575) |
+| Total Revenue | Sum of Total Spent (1,552,071) |
+| Total Quantity Sold | Sum of Quantity (66,276) |
+
+Totals sum the recorded values, and rows left incomplete are not estimated.
+
+## Dashboard Visuals
 - Total revenue, and revenue by category
 - Total quantity sold, and quantity by category
 - Discount usage (TRUE/FALSE) by category
-- Purchase location split (Online vs. In-store)
+- Purchase location split (Online vs In-store)
 - Payment method split (Cash / Credit Card / Digital Wallet) by category
 - Revenue by month and by year
 
-### Color palette
+## Key Insights
+- **Revenue is evenly distributed across categories.** Total revenue is 1,552,071 across 8 categories, and every category falls between 180,000 and 208,000 (Butchers highest at 208,118, Milk Products lowest at 180,112), a spread of about 15% from top to bottom.
+- **Quantity sold does not track revenue exactly.** Furniture leads in units sold (8,462) but ranks only fourth in revenue, while Butchers has fewer transactions but the highest revenue. This points to a higher average price per unit for Butchers (about 25.4 vs 23.1 for Furniture).
+- **Discount usage is close to 50/50 in every category** (6,374 discounted vs 6,201 not), so no category is discounted disproportionately.
+- **Purchase location is close to even** (Online 6,354 vs In-store 6,221).
+- **Payment method is close to a three-way even split** (Cash 4,310, Credit Card 4,121, Digital Wallet 4,144), both overall and within each category.
+- **The near-total uniformity is consistent with the data being synthetic,** as its source describes. It is worth stating plainly rather than forcing charts to imply patterns the data does not support.
 
-A consistent color system was applied across all charts so the dashboard reads as one coherent design rather than independently styled charts:
+## Limitations
+- **No profit data.** The dataset has revenue (`Total Spent`) but no cost column, so profitability cannot be calculated. All figures are revenue, not profit.
+- **Rows with two or more missing values** among Price Per Unit, Quantity and Total Spent were left incomplete rather than estimated.
+- **Time analysis depends on date parsing.** 2025 revenue looks low because the dataset's 2025 records are partial (the year was in progress), not because sales fell.
+- The dataset is synthetic, so findings describe patterns in this data, not real market behaviour.
 
-| Meaning | Color |
-|---|---|
-| Primary metric / Online / Discount = TRUE | Navy blue |
-| Secondary metric / In-store | Warm orange |
-| Highlighted top performer | Gold |
-| De-emphasized comparison (e.g. Discount = FALSE) | Light blue-gray |
-| KPI call-out numbers | Deep teal |
+## Tools Used
+Microsoft Excel (formulas, PivotTables, PivotCharts)
 
-Card and page backgrounds were set to neutral off-white/light gray rather than mismatched pastel fills, so color is used to carry meaning rather than decoration.
-
-## Findings
-
-- **Revenue is unusually evenly distributed across categories.** Total revenue is R1,552,071 across 8 categories, with every category falling in a tight R180,000–R208,000 band (Butchers highest, Milk Products lowest) — only a ~15% spread top to bottom.
-- **Quantity sold doesn't perfectly track revenue.** Furniture leads in units sold (8,462) but is only mid-pack in revenue, while Butchers has fewer transactions but the highest revenue — implying a meaningfully higher average price per unit for Butchers.
-- **Discount usage is close to a 50/50 split in every single category**, with no category discounted disproportionately more or less than others.
-- **Purchase location is close to even** (Online 6,354 vs. In-store 6,221).
-- **Payment method is close to a three-way even split** (Cash, Credit Card, Digital Wallet), both overall and within each category individually.
-- Taken together, the uniformity across nearly every dimension suggests this dataset was synthetically generated with balanced/randomized distributions rather than reflecting organic customer behavior. This is a legitimate finding in itself — the near-total absence of variation is worth stating explicitly rather than forcing charts to imply patterns the data doesn't support.
-
-## Caveats and limitations
-
-- **No profit data.** The dataset includes revenue (`Total Spent`) but no cost/COGS column, so profitability cannot be calculated — all revenue figures should be read as sales volume, not profit.
-- **Rows with two or more missing numeric values** (`Price Per Unit`, `Quantity`, `Total Spent`) were left incomplete rather than estimated, since there was no reliable way to recover them without fabricating data.
-- **Monthly/yearly revenue figures** depend on `Transaction Date` parsing; 2025 revenue appears low relative to other years because the dataset's 2025 records are partial (year in progress), not because of a genuine sales decline.
-- This dataset is synthetic and intended for practicing data cleaning and analysis — findings above describe patterns in this dataset, not real market behavior.
-
-## Tools used
-
-- Microsoft Excel (formulas, PivotTables, Power Query concepts, native charts)
-- Manual verification via a dedicated Calculations sheet
-
-## Dataset link
-- https://www.kaggle.com/datasets/ahmedmohamed2003/retail-store-sales-dirty-for-data-cleaning/data
+## Author
+**Sello Mpho** · Bloemfontein, South Africa
+[Portfolio](https://mpho-sello.vercel.app/) · [LinkedIn](https://www.linkedin.com/in/mpho-sello-692193241) · sellompho1601@gmail.com
